@@ -32,6 +32,32 @@ A number of tests will be run, taking some time.
 `mvn install` allows you to use the JAR locally in your other projects.
 
 
+## Web UI (localhost) quickstart
+
+To try a minimal browser UI served by a lightweight HTTP server in this project:
+
+1. Build (skip legacy tests/javadoc):
+
+   `mvn -Dmaven.test.skip=true -Dmaven.javadoc.skip=true -q package`
+
+2. Run the server (port 8080 by default):
+
+   `java -cp target/safesealing-0.9.2-runnable.jar com.metabit.custom.safe.web.ServerMain`
+
+3. Open the UI: `http://localhost:8080/`
+
+Endpoints exposed under `/api/*`:
+
+* POST `/api/seal` (multipart/form-data)
+  - Fields: `privateKeyPem` (text or file), `payload` (file) or `payloadText` (text), optional `uniqueId`, optional `algorithmVersion` (1|2, default 2), optional `compression` (true|false, default true)
+  - Returns JSON: `{ base64, hexPreview, size }`
+* POST `/api/reveal` (multipart/form-data)
+  - Fields: `publicKeyPem` (text or file), `sealed` (file) or `sealedBase64` (text), optional `algorithmVersion` (default 2)
+  - Returns JSON: `{ payloadBase64, utf8Preview, size }`
+* POST `/api/keys/generate`
+  - Returns JSON: `{ privateKeyPem, publicKeyPem }`
+
+
 ## library use
 
 * Add the JAR to your project.

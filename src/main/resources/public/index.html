@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SAFESealing – Demo</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;max-width:960px;margin:24px auto;padding:0 16px}
+    h1{font-size:22px}
+    h2{font-size:18px;margin-top:24px}
+    textarea{width:100%;min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace}
+    input[type="text"], input[type="number"], select{width:100%;padding:6px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card{border:1px solid #ddd;border-radius:8px;padding:16px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .out{background:#fafafa;border:1px dashed #ccc;padding:8px;border-radius:6px;white-space:pre-wrap}
+    .muted{color:#666;font-size:12px}
+    button{padding:8px 12px;border:1px solid #333;background:#111;color:#fff;border-radius:6px;cursor:pointer}
+    button.secondary{background:#f5f5f5;color:#111;border-color:#ccc}
+    .small{font-size:12px}
+  </style>
+  <script>
+    async function postForm(url, form){
+      const res = await fetch(url, { method:'POST', body: form });
+      const data = await res.json();
+      if(!res.ok){ throw new Error(data.error || ('HTTP '+res.status)); }
+      return data;
+    }
+
+    function b64ToBlob(b64){
+      const bin = atob(b64); const u8 = new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+      return new Blob([u8]);
+    }
+
+    async function generateKeys(){
+      try {
+        const data = await fetch('/api/keys/generate', { method:'POST' }).then(r=>r.json());
+        document.getElementById('publicKeyPem').value = data.publicKeyPem || '';
+        document.getElementById('privateKeyPem').value = data.privateKeyPem || '';
+      } catch(e){ alert('Key generation failed: '+e.message); }
+    }
+
+    async function doSeal(){
+      const form = new FormData();
+      const privateKeyPem = document.getElementById('privateKeyPem').value.trim();
+      const payloadText = document.getElementById('payloadText').value;
+      const payloadFile = document.getElementById('payloadFile').files[0];
+      const uniqueId = document.getElementById('uniqueId').value.trim();
+      const alg = document.getElementById('alg').value;
+      const compression = document.getElementById('compression').checked;
+      if(privateKeyPem) form.append('privateKeyPem', privateKeyPem);
+      if(payloadFile){ form.append('payload', payloadFile); } else if(payloadText){ form.append('payloadText', payloadText); }
+      if(uniqueId) form.append('uniqueId', uniqueId);
+      form.append('algorithmVersion', alg);
+      form.append('compression', String(compression));
+      try{
+        const data = await postForm('/api/seal', form);
+        const out = document.getElementById('sealOut');
+        out.textContent = JSON.stringify(data, null, 2);
+        const blob = b64ToBlob(data.base64);
+        const url = URL.createObjectURL(blob);
+        const link = document.getElementById('sealedDownload');
+        link.href = url; link.download = 'sealed.der'; link.style.display='inline-block';
+      }catch(e){ alert('Seal failed: '+e.message); }
+    }
+
+    async function doReveal(){
+      const form = new FormData();
+      const publicKeyPem = document.getElementById('publicKeyPem').value.trim();
+      const sealedFile = document.getElementById('sealedFile').files[0];
+      const sealedBase64 = document.getElementById('sealedBase64').value.trim();
+      const alg = document.getElementById('algReveal').value;
+      if(publicKeyPem) form.append('publicKeyPem', publicKeyPem);
+      if(sealedFile){ form.append('sealed', sealedFile); } else if(sealedBase64){ form.append('sealedBase64', sealedBase64); }
+      form.append('algorithmVersion', alg);
+      try{
+        const data = await postForm('/api/reveal', form);
+        document.getElementById('revealOut').textContent = JSON.stringify(data, null, 2);
+        const blob = b64ToBlob(data.payloadBase64);
+        const url = URL.createObjectURL(blob);
+        const link = document.getElementById('payloadDownload');
+        link.href = url; link.download = 'payload.bin'; link.style.display='inline-block';
+        document.getElementById('payloadPreview').textContent = data.utf8Preview || '';
+      }catch(e){ alert('Reveal failed: '+e.message); }
+    }
+  </script>
+  </head>
+<body>
+  <h1>SAFESealing – Browser Demo (localhost)</h1>
+  <p class="muted">Inputs and outputs on this single page. Use Generate Keys for testing.</p>
+
+  <div class="card">
+    <h2>Keys</h2>
+    <div class="actions"><button class="secondary" onclick="generateKeys()">Generate RSA 2048 Keys</button></div>
+    <div class="row">
+      <div>
+        <label class="small">Public Key (PEM, X.509)</label>
+        <textarea id="publicKeyPem" placeholder="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"></textarea>
+      </div>
+      <div>
+        <label class="small">Private Key (PEM, PKCS#8)</label>
+        <textarea id="privateKeyPem" placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>Seal</h2>
+      <label class="small">Payload file (optional)</label>
+      <input id="payloadFile" type="file" />
+      <label class="small">Or payload text</label>
+      <textarea id="payloadText" placeholder="Type text to seal..."></textarea>
+      <div class="row">
+        <div>
+          <label class="small">Unique ID (optional)</label>
+          <input id="uniqueId" type="text" placeholder="e.g. 12345" />
+        </div>
+        <div>
+          <label class="small">Algorithm</label>
+          <select id="alg"><option value="2" selected>2 (default)</option><option value="1">1</option></select>
+        </div>
+      </div>
+      <label><input id="compression" type="checkbox" checked /> compression</label>
+      <div class="actions">
+        <button onclick="doSeal()">Seal</button>
+        <a id="sealedDownload" class="secondary" style="display:none">Download sealed.der</a>
+      </div>
+      <div class="out small" id="sealOut"></div>
+    </div>
+
+    <div class="card">
+      <h2>Reveal</h2>
+      <label class="small">Sealed file (optional)</label>
+      <input id="sealedFile" type="file" />
+      <label class="small">Or sealed Base64</label>
+      <textarea id="sealedBase64" placeholder="Base64 of sealed data..."></textarea>
+      <div>
+        <label class="small">Algorithm</label>
+        <select id="algReveal"><option value="2" selected>2 (default)</option><option value="1">1</option></select>
+      </div>
+      <div class="actions">
+        <button onclick="doReveal()">Reveal</button>
+        <a id="payloadDownload" class="secondary" style="display:none">Download payload.bin</a>
+      </div>
+      <div class="out small" id="revealOut"></div>
+      <div class="out" id="payloadPreview"></div>
+    </div>
+  </div>
+
+  <p class="muted">Health: <span id="health"></span></p>
+  <script>
+    fetch('/api/health').then(r=>r.json()).then(j=>{document.getElementById('health').textContent=j.status||'n/a'}).catch(()=>{document.getElementById('health').textContent='offline'});
+  </script>
+</body>
+</html>
+
+

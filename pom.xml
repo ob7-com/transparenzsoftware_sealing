@@ -29,14 +29,16 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<maven.compiler.source>8</maven.compiler.source>
-		<maven.compiler.target>8</maven.compiler.target>
+		<maven.compiler.source>11</maven.compiler.source>
+		<maven.compiler.target>11</maven.compiler.target>
 		<lombok.version>1.18.30</lombok.version>
 		<slf4j.version>2.0.9</slf4j.version>
 		<semver.version>0.9.33</semver.version>
 		<commons-cli.version>1.5.0</commons-cli.version>
 		<junit.version>5.10.0</junit.version>
 		<mainclass>com.metabit.custom.safe.safeseal.CommandLineMain</mainclass>
+		<javalin.version>5.6.1</javalin.version>
+		<jackson.version>2.15.3</jackson.version>
 	</properties>
 
 	<dependencies>
@@ -79,6 +81,25 @@
 			<version>4.7.5</version>
 		</dependency>
 
+		<!-- Web server for localhost UI -->
+		<dependency>
+			<groupId>io.javalin</groupId>
+			<artifactId>javalin</artifactId>
+			<version>${javalin.version}</version>
+		</dependency>
+
+		<!-- JSON handling -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+
 		<!-- reducing java boilerplate code -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
@@ -97,7 +118,7 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
 			<version>${slf4j.version}</version>
-			<scope>test</scope>
+			<scope>runtime</scope>
 		</dependency>
 
 		<!-- test support -->
@@ -114,20 +135,7 @@
 			<scope>test</scope>
 		</dependency>
 		<!-- not available publicly yet -->
-		<dependency>
-			<groupId>org.metabit.library.misc</groupId>
-			<artifactId>utils</artifactId>
-			<version>0.1.15-SNAPSHOT</version>
-			<scope>test</scope>
-			<!--
-			referencing the local JAR file contained in the repository
-			was possible this way
-			<scope>system</scope>
-			<systemPath>${project.basedir}/src/test/resources/lib/utils-0.1.15-SNAPSHOT.jar</systemPath>
-	 		but has been deprecated.  no viable alternative has been offered by maven maintainers, yet.
-			see [MNG-6523](https://issues.apache.org/jira/browse/MNG-6523) -
-			-->
-		</dependency>
+		<!-- Removed test dependency on org.metabit.library.misc:utils (local JAR not present) -->
 
 	</dependencies>
 
@@ -252,37 +260,28 @@
 				</dependencies>
 			</plugin>
 
-			<!-- make packaged library available to local repository.
-				 The better option, system/systempath dependency, has been deprecated.
-			 -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-install-plugin</artifactId>
-				<version>2.5.2</version>
-				<executions>
-					<execution>
-						<id>install-external</id>
-						<phase>process-resources</phase>
-						<configuration>
-							<file>${basedir}/src/test/resources/lib/utils-0.1.15-SNAPSHOT.jar</file>
-							<repositoryLayout>default</repositoryLayout>
-							<groupId>org.metabit.library.misc</groupId>
-							<artifactId>utils</artifactId>
-							<version>0.1.15-SNAPSHOT</version>
-							<packaging>jar</packaging>
-							<generatePom>true</generatePom>
-						</configuration>
-						<goals>
-							<goal>install-file</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+			<!-- Removed install-external for missing local test utility JAR -->
 		</plugins>
 	</build>
 
 	<profiles>
-
+		<profile>
+			<id>web-tests</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<version>3.0.0-M7</version>
+						<configuration>
+							<includes>
+								<include>**/web/*Test.java</include>
+							</includes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
 	</profiles>
 
 </project>
