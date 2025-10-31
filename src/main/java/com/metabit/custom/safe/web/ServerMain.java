@@ -32,6 +32,21 @@ public class ServerMain
     static void registerRoutes(Javalin app)
     {
         app.get("/api/health", ctx -> ctx.json(Map.of("status", "ok")));
+        
+        // Explicit route for logo to ensure it's served correctly
+        app.get("/logo.png", ctx -> {
+            try (var is = ServerMain.class.getResourceAsStream("/public/logo.png")) {
+                if (is != null) {
+                    ctx.contentType("image/png");
+                    ctx.result(is.readAllBytes());
+                } else {
+                    ctx.status(404).result("Logo not found");
+                }
+            } catch (Exception e) {
+                ctx.status(500).result("Error serving logo: " + e.getMessage());
+            }
+        });
+        
         SealController.register(app);
         RevealController.register(app);
         KeysController.register(app);

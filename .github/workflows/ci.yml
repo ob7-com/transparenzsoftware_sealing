@@ -1,0 +1,43 @@
+name: CI - Test and Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      
+      - name: Run tests
+        run: mvn test
+      
+      - name: Build JAR (verify build works)
+        run: mvn -Dmaven.test.skip=false -Dmaven.javadoc.skip=true package
+      
+      - name: Verify static resources are included
+        run: |
+          jar -tf target/safesealing-0.9.2-runnable.jar | grep -q "public/logo.png" || exit 1
+          jar -tf target/safesealing-0.9.2-runnable.jar | grep -q "public/index.html" || exit 1
+          echo "✅ Static resources verified in JAR"
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/surefire-reports/
+          retention-days: 7
+
