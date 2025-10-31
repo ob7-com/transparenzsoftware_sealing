@@ -1,23 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="handelsblatt-light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SAFESealing – Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;max-width:960px;margin:24px auto;padding:0 16px}
-    h1{font-size:22px}
-    h2{font-size:18px;margin-top:24px}
-    textarea{width:100%;min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace}
-    input[type="text"], input[type="number"], select{width:100%;padding:6px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .card{border:1px solid #ddd;border-radius:8px;padding:16px}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .out{background:#fafafa;border:1px dashed #ccc;padding:8px;border-radius:6px;white-space:pre-wrap}
-    .muted{color:#666;font-size:12px}
-    button{padding:8px 12px;border:1px solid #333;background:#111;color:#fff;border-radius:6px;cursor:pointer}
-    button.secondary{background:#f5f5f5;color:#111;border-color:#ccc}
-    .small{font-size:12px}
+    [data-theme="handelsblatt-light"] {
+      --p: 0 92 163; /* Primary: Handelsblatt-Blau */
+      --s: 45 99 107; /* Secondary: Dezentes Teal */
+      --a: 0 149 158; /* Accent: Lebendiges Blau-Grün */
+      --n: 59 58 56; /* Neutral: Dunkelgrau */
+      --b1: 255 255 255; /* Base: Weiß */
+      --b2: 249 250 251; /* Base 2: Sehr helles Grau */
+      --b3: 243 244 246; /* Base 3: Hellgrau */
+      --bc: 31 41 55; /* Base Content: Dunkelgrau für Text */
+      --in: 59 130 246; /* Info: Blau */
+      --su: 16 185 129; /* Success: Grün */
+      --wa: 251 146 60; /* Warning: Orange */
+      --er: 239 68 68; /* Error: Rot */
+    }
   </style>
   <script>
     async function postForm(url, form){
@@ -86,72 +89,258 @@
     }
   </script>
   </head>
-<body>
-  <h1>SAFESealing – Browser Demo (localhost)</h1>
-  <p class="muted">Inputs and outputs on this single page. Use Generate Keys for testing.</p>
-
-  <div class="card">
-    <h2>Keys</h2>
-    <div class="actions"><button class="secondary" onclick="generateKeys()">Generate RSA 2048 Keys</button></div>
-    <div class="row">
-      <div>
-        <label class="small">Public Key (PEM, X.509)</label>
-        <textarea id="publicKeyPem" placeholder="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"></textarea>
-      </div>
-      <div>
-        <label class="small">Private Key (PEM, PKCS#8)</label>
-        <textarea id="privateKeyPem" placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"></textarea>
-      </div>
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="card">
-      <h2>Seal</h2>
-      <label class="small">Payload file (optional)</label>
-      <input id="payloadFile" type="file" />
-      <label class="small">Or payload text</label>
-      <textarea id="payloadText" placeholder="Type text to seal..."></textarea>
-      <div class="row">
-        <div>
-          <label class="small">Unique ID (optional)</label>
-          <input id="uniqueId" type="text" placeholder="e.g. 12345" />
-        </div>
-        <div>
-          <label class="small">Algorithm</label>
-          <select id="alg"><option value="2" selected>2 (default)</option><option value="1">1</option></select>
+<body class="bg-base-200 min-h-screen">
+  <div class="container mx-auto max-w-6xl px-4 py-8">
+    <!-- Header Section -->
+    <header class="mb-8">
+      <div class="flex items-center justify-between flex-wrap gap-4 mb-2">
+        <h1 class="text-3xl font-bold text-base-content">SAFESealing</h1>
+        <div class="badge badge-lg badge-outline">
+          <span class="font-mono text-xs">Status:</span>
+          <span id="health" class="ml-1">checking...</span>
         </div>
       </div>
-      <label><input id="compression" type="checkbox" checked /> compression</label>
-      <div class="actions">
-        <button onclick="doSeal()">Seal</button>
-        <a id="sealedDownload" class="secondary" style="display:none">Download sealed.der</a>
-      </div>
-      <div class="out small" id="sealOut"></div>
-    </div>
+      <p class="text-base-content/70 text-sm leading-relaxed max-w-2xl">
+        Secure cryptographic sealing and revealing demonstration interface. Generate RSA keys for testing or use your own key pair.
+      </p>
+    </header>
 
-    <div class="card">
-      <h2>Reveal</h2>
-      <label class="small">Sealed file (optional)</label>
-      <input id="sealedFile" type="file" />
-      <label class="small">Or sealed Base64</label>
-      <textarea id="sealedBase64" placeholder="Base64 of sealed data..."></textarea>
-      <div>
-        <label class="small">Algorithm</label>
-        <select id="algReveal"><option value="2" selected>2 (default)</option><option value="1">1</option></select>
+    <!-- Keys Section -->
+    <section class="mb-8">
+      <div class="card bg-base-100 shadow-lg border border-base-300">
+        <div class="card-body">
+          <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
+            <div>
+              <h2 class="card-title text-xl mb-1">🔑 Cryptographic Keys</h2>
+              <p class="text-sm text-base-content/60">RSA 2048-bit key pair for sealing and revealing operations</p>
+            </div>
+            <button class="btn btn-primary btn-lg" onclick="generateKeys()">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Generate Keys
+            </button>
+          </div>
+          <div class="divider my-2"></div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-semibold text-sm">Public Key (PEM, X.509)</span>
+              </label>
+              <textarea 
+                id="publicKeyPem" 
+                class="textarea textarea-bordered w-full min-h-48 font-mono text-xs leading-relaxed" 
+                placeholder="-----BEGIN PUBLIC KEY-----&#10;...&#10;-----END PUBLIC KEY-----">
+              </textarea>
+            </div>
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-semibold text-sm">Private Key (PEM, PKCS#8)</span>
+              </label>
+              <textarea 
+                id="privateKeyPem" 
+                class="textarea textarea-bordered w-full min-h-48 font-mono text-xs leading-relaxed" 
+                placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----">
+              </textarea>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="actions">
-        <button onclick="doReveal()">Reveal</button>
-        <a id="payloadDownload" class="secondary" style="display:none">Download payload.bin</a>
+    </section>
+
+    <!-- Operations Section -->
+    <section>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <!-- Seal Card -->
+        <div class="card bg-base-100 shadow-lg border border-base-300">
+          <div class="card-body">
+            <h2 class="card-title text-xl mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              Seal Data
+            </h2>
+            
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium">Payload File</span>
+                <span class="label-text-alt text-base-content/50">optional</span>
+              </label>
+              <input id="payloadFile" type="file" class="file-input file-input-bordered file-input-primary w-full" />
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium">Or Payload Text</span>
+              </label>
+              <textarea 
+                id="payloadText" 
+                class="textarea textarea-bordered w-full min-h-32 font-mono text-sm" 
+                placeholder="Enter text to seal...">
+              </textarea>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium text-xs">Unique ID</span>
+                  <span class="label-text-alt text-base-content/50">optional</span>
+                </label>
+                <input 
+                  id="uniqueId" 
+                  type="text" 
+                  class="input input-bordered w-full" 
+                  placeholder="e.g. 12345" 
+                />
+              </div>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium text-xs">Algorithm Version</span>
+                </label>
+                <select id="alg" class="select select-bordered w-full">
+                  <option value="2" selected>Version 2 (default)</option>
+                  <option value="1">Version 1</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-control mb-6">
+              <label class="label cursor-pointer justify-start gap-3">
+                <input id="compression" type="checkbox" class="checkbox checkbox-primary" checked />
+                <span class="label-text font-medium">Enable Compression</span>
+              </label>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <div class="flex flex-wrap gap-3 mb-4">
+              <button class="btn btn-primary btn-block sm:btn-auto" onclick="doSeal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Seal
+              </button>
+              <a id="sealedDownload" class="btn btn-outline btn-block sm:btn-auto" style="display:none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download sealed.der
+              </a>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-medium text-xs">Output</span>
+              </label>
+              <div class="mockup-code bg-base-200 text-xs">
+                <pre id="sealOut" class="text-xs p-4 overflow-x-auto"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reveal Card -->
+        <div class="card bg-base-100 shadow-lg border border-base-300">
+          <div class="card-body">
+            <h2 class="card-title text-xl mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              Reveal Data
+            </h2>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium">Sealed File</span>
+                <span class="label-text-alt text-base-content/50">optional</span>
+              </label>
+              <input id="sealedFile" type="file" class="file-input file-input-bordered file-input-secondary w-full" />
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium">Or Sealed Base64</span>
+              </label>
+              <textarea 
+                id="sealedBase64" 
+                class="textarea textarea-bordered w-full min-h-32 font-mono text-sm" 
+                placeholder="Paste base64 encoded sealed data...">
+              </textarea>
+            </div>
+
+            <div class="form-control mb-6">
+              <label class="label">
+                <span class="label-text font-medium text-xs">Algorithm Version</span>
+              </label>
+              <select id="algReveal" class="select select-bordered w-full">
+                <option value="2" selected>Version 2 (default)</option>
+                <option value="1">Version 1</option>
+              </select>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <div class="flex flex-wrap gap-3 mb-4">
+              <button class="btn btn-secondary btn-block sm:btn-auto" onclick="doReveal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                Reveal
+              </button>
+              <a id="payloadDownload" class="btn btn-outline btn-block sm:btn-auto" style="display:none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download payload.bin
+              </a>
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium text-xs">Output</span>
+              </label>
+              <div class="mockup-code bg-base-200 text-xs">
+                <pre id="revealOut" class="text-xs p-4 overflow-x-auto"></pre>
+              </div>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-medium text-xs">Payload Preview</span>
+              </label>
+              <div class="mockup-code bg-base-200 text-sm">
+                <pre id="payloadPreview" class="text-sm p-4 overflow-x-auto whitespace-pre-wrap"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="out small" id="revealOut"></div>
-      <div class="out" id="payloadPreview"></div>
-    </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-12 pt-6 border-t border-base-300">
+      <p class="text-xs text-base-content/50 text-center">
+        SAFESealing Demo Interface • Localhost Development Environment
+      </p>
+    </footer>
   </div>
-
-  <p class="muted">Health: <span id="health"></span></p>
   <script>
-    fetch('/api/health').then(r=>r.json()).then(j=>{document.getElementById('health').textContent=j.status||'n/a'}).catch(()=>{document.getElementById('health').textContent='offline'});
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(j => {
+        const healthEl = document.getElementById('health');
+        const status = j.status || 'n/a';
+        healthEl.textContent = status;
+        healthEl.className = status === 'ok' || status === 'healthy' 
+          ? 'badge badge-success ml-1' 
+          : 'badge badge-warning ml-1';
+      })
+      .catch(() => {
+        const healthEl = document.getElementById('health');
+        healthEl.textContent = 'offline';
+        healthEl.className = 'badge badge-error ml-1';
+      });
   </script>
 </body>
 </html>

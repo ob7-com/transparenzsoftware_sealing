@@ -57,6 +57,20 @@ Endpoints exposed under `/api/*`:
 * POST `/api/keys/generate`
   - Returns JSON: `{ privateKeyPem, publicKeyPem }`
 
+## Docker
+
+Build and run without installing Java locally:
+
+1. Build image
+
+   `docker build -t safesealing-web .`
+
+2. Run container (port 8080)
+
+   `docker run --rm -p 8080:8080 safesealing-web`
+
+3. Open `http://localhost:8080/`
+
 
 ## library use
 
