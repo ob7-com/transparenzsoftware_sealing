@@ -35,6 +35,7 @@ public class ServerMain
         SealController.register(app);
         RevealController.register(app);
         KeysController.register(app);
+        VerifyController.register(app);
     }
 
     private static int getPort()

@@ -57,6 +57,30 @@ final class KeyUtil
         String b64 = Base64.getEncoder().encodeToString(key.getEncoded());
         return "-----BEGIN PRIVATE KEY-----\n" + b64 + "\n-----END PRIVATE KEY-----\n";
     }
+
+    // --- EC key helpers for Transparenzsoftware inputs (e.g., OCMF ECDSA P-256)
+
+    static PublicKey parseEcPublicKeyPem(final String pem)
+            throws NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        String cleaned = pem
+                .replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "")
+                .replaceAll("\\s", "");
+        byte[] der = Base64.getDecoder().decode(cleaned);
+        KeyFactory kf = KeyFactory.getInstance("EC");
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(der);
+        return kf.generatePublic(spec);
+    }
+
+    static PublicKey parseEcPublicKeyBase64Der(final String base64Der)
+            throws NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        byte[] der = Base64.getDecoder().decode(base64Der.trim());
+        KeyFactory kf = KeyFactory.getInstance("EC");
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(der);
+        return kf.generatePublic(spec);
+    }
 }
 
 

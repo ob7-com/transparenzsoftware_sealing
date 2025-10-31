@@ -1,139 +1,240 @@
-# IIP - Interleaved Integrity Padding
+# SAFESealing
 
-A method to provide integrity validation of an encrypted message without use of hashes or other MACs.
+Ein Tool zum sicheren Versiegeln und Entsiegeln von Daten sowie zur Verifizierung von Transparenzdokumenten (OCMF).
 
-Publisher: SAFE e.V.  https://www.safe-ev.de/en/
-Author: J.Wilkes, metabit
+**Herausgeber:** SAFE e.V.  https://www.safe-ev.de/en/  
+**Autor:** J.Wilkes, metabit
 
-## goal
+## Was ist SAFESealing?
 
-The purpose of this method and implementation is to provide means of conditioning a payload message for encryption 
-in a way so its integrity can be validated after decryption, 
-without using any hash or other "unique description of the message" in the overall process.
+SAFESealing ist ein Tool, das Ihnen ermöglicht, Daten sicher zu verschlüsseln und zu übertragen, ohne auf herkömmliche Hash-Funktionen oder Message Authentication Codes (MACs) angewiesen zu sein. Das Tool verwendet das **IIP (Interleaved Integrity Padding)** Verfahren, um die Integrität verschlüsselter Daten zu gewährleisten.
 
-It does not aim to provide confidentiality, nor improve over well-know cryptographic padding schemes.
+### Wofür können Sie das Tool nutzen?
 
-# Install and use
+- **Daten sicher versiegeln**: Verschlüsseln Sie Dateien oder Texte mit Ihrem privaten Schlüssel, um sie sicher zu übertragen
+- **Daten entsiegeln**: Entschlüsseln Sie versiegelte Daten mit dem passenden öffentlichen Schlüssel
+- **Transparenzdokumente verifizieren**: Überprüfen Sie die Echtheit von OCMF-Format Transparenz-XML-Dateien (z.B. für Energiezähler-Daten)
+- **Schlüsselpaare generieren**: Erstellen Sie neue kryptographische Schlüsselpaare für die Verschlüsselung
 
-## import library
+## Schnellstart – Web-Interface
 
-Add the library JAR to your project.
+Das einfachste und schnellste, um SAFESealing zu nutzen, ist über die Web-Oberfläche.
 
-## build from source 
+### 1. Anwendung starten
 
-Be sure that maven is installed https://maven.apache.org/. To package the application run:
+**Option A: Mit Docker (empfohlen)**
 
-`mvn clean package`
+```bash
+# Docker Image erstellen
+docker build -t safesealing-web .
 
-This will create library JAR files in the target folder, named safesealing*.jar .
-A number of tests will be run, taking some time.
+# Container starten (läuft auf Port 8080)
+docker run --rm -p 8080:8080 safesealing-web
+```
 
+**Option B: Direkt mit Java**
 
-`mvn install` allows you to use the JAR locally in your other projects.
+```bash
+# Projekt bauen (Tests überspringen für schnelleren Build)
+mvn -Dmaven.test.skip=true -Dmaven.javadoc.skip=true -q package
 
+# Server starten
+java -cp target/safesealing-0.9.2-runnable.jar com.metabit.custom.safe.web.ServerMain
+```
 
-## Web UI (localhost) quickstart
+### 2. Web-Interface öffnen
 
-To try a minimal browser UI served by a lightweight HTTP server in this project:
+Öffnen Sie in Ihrem Browser: **http://localhost:8080/**
 
-1. Build (skip legacy tests/javadoc):
+## Wie Sie das Tool verwenden
 
-   `mvn -Dmaven.test.skip=true -Dmaven.javadoc.skip=true -q package`
+### Daten versiegeln (Seal)
 
-2. Run the server (port 8080 by default):
+1. **Schlüsselpaar erstellen** (falls noch nicht vorhanden):
+   - Klicken Sie auf "Generate Keys"
+   - Es werden ein privater und ein öffentlicher Schlüssel generiert
 
-   `java -cp target/safesealing-0.9.2-runnable.jar com.metabit.custom.safe.web.ServerMain`
+2. **Daten eingeben**:
+   - Geben Sie Ihren **privaten Schlüssel** ein (oder laden Sie eine .pem-Datei hoch)
+   - Wählen Sie entweder eine Datei aus oder geben Sie Text direkt ein
+   - Optional: Geben Sie eine eindeutige ID (uniqueId) ein
 
-3. Open the UI: `http://localhost:8080/`
+3. **Versiegeln**:
+   - Klicken Sie auf "Seal"
+   - Das Tool erstellt eine verschlüsselte, versiegelte Version Ihrer Daten
+   - Sie können die versiegelte Datei herunterladen (`.der`-Format)
 
-Endpoints exposed under `/api/*`:
+### Daten entsiegeln (Reveal)
 
-* POST `/api/seal` (multipart/form-data)
-  - Fields: `privateKeyPem` (text or file), `payload` (file) or `payloadText` (text), optional `uniqueId`, optional `algorithmVersion` (1|2, default 2), optional `compression` (true|false, default true)
-  - Returns JSON: `{ base64, hexPreview, size }`
-* POST `/api/reveal` (multipart/form-data)
-  - Fields: `publicKeyPem` (text or file), `sealed` (file) or `sealedBase64` (text), optional `algorithmVersion` (default 2)
-  - Returns JSON: `{ payloadBase64, utf8Preview, size }`
-* POST `/api/keys/generate`
-  - Returns JSON: `{ privateKeyPem, publicKeyPem }`
+1. **Öffentlichen Schlüssel bereitstellen**:
+   - Geben Sie den öffentlichen Schlüssel ein (oder laden Sie eine .pem-Datei hoch)
 
-## Docker
+2. **Versiegelte Daten eingeben**:
+   - Laden Sie die versiegelte Datei hoch, oder
+   - Fügen Sie die Base64-kodierte Version ein
 
-Build and run without installing Java locally:
+3. **Entsiegeln**:
+   - Klicken Sie auf "Reveal"
+   - Die ursprünglichen Daten werden wiederhergestellt
+   - Sie können die entsiegelten Daten als Datei herunterladen oder als Textvorschau ansehen
 
-1. Build image
+### Transparenzdokumente verifizieren
 
-   `docker build -t safesealing-web .`
+Diese Funktion prüft die Echtheit von OCMF-Format Transparenz-XML-Dateien (z.B. für Smart Meter Daten).
 
-2. Run container (port 8080)
+1. **XML-Datei hochladen**:
+   - Laden Sie eine Transparenz-XML-Datei hoch, die ein `<signedData format="ocmf">` Element enthält
+   - Oder fügen Sie den XML-Text direkt ein
 
-   `docker run --rm -p 8080:8080 safesealing-web`
+2. **Öffentlichen Schlüssel angeben** (falls nötig):
+   - Wenn der öffentliche Schlüssel nicht in der XML-Datei enthalten ist (`<publicKey>` Element), geben Sie ihn separat an
+   - Entweder als PEM-Text oder als Base64-kodierte DER-Datei
 
-3. Open `http://localhost:8080/`
+3. **Verifizieren**:
+   - Klicken Sie auf "Verify"
+   - Das Tool prüft die ECDSA-Signatur gegen den öffentlichen Schlüssel
+   - Sie erhalten eine Bestätigung (ok) oder eine Liste von Fehlern
 
+**Ergebnis**: Sie sehen, ob die Signatur gültig ist und das Dokument nicht manipuliert wurde.
 
-## library use
+## Technische Details
 
-* Add the JAR to your project.
-* Import SAFESealSealer class.
-* load your PrivateKey, get uniqueID, prepare payload to be sent. 
-* Instantiate the SAFESealer class, then call its seal() function:
+### IIP – Interleaved Integrity Padding
+
+Das Kernverfahren dieses Tools ist IIP, eine Methode zur Integritätsprüfung verschlüsselter Nachrichten ohne Verwendung von Hash-Funktionen oder MACs.
+
+**Wie funktioniert es?**
+
+- Eine zufällige Byte-Sequenz (Nonce) wird mehrfach in die Nachricht eingebunden
+- Die Nachricht wird mit einem Verschlüsselungsalgorithmus verschlüsselt, der eine hohe Diffusion bietet
+- Nach der Entschlüsselung wird die Konsistenz der Nonce-Werte geprüft
+- Wurde der verschlüsselte Text verändert, hat sich dies auf die Nonce-Werte ausgewirkt und wird erkannt
+
+**Wichtig**: IIP bietet keine Vertraulichkeit (Confidentiality) – das wird durch die Verschlüsselung erreicht. Es verbessert auch nicht etablierte kryptographische Padding-Verfahren, sondern ergänzt sie um Integritätsprüfung ohne Hash-Verwendung.
+
+### API-Endpunkte
+
+Die Web-Oberfläche nutzt folgende REST-API-Endpunkte unter `/api/*`:
+
+**Schlüssel generieren:**
+- `POST /api/keys/generate`
+  - Gibt ein neues Schlüsselpaar zurück: `{ privateKeyPem, publicKeyPem }`
+
+**Daten versiegeln:**
+- `POST /api/seal` (multipart/form-data)
+  - Felder: `privateKeyPem` (Text oder Datei), `payload` (Datei) oder `payloadText` (Text), optional `uniqueId`, optional `algorithmVersion` (1|2, Standard: 2), optional `compression` (true|false, Standard: true)
+  - Gibt zurück: `{ base64, hexPreview, size }`
+
+**Daten entsiegeln:**
+- `POST /api/reveal` (multipart/form-data)
+  - Felder: `publicKeyPem` (Text oder Datei), `sealed` (Datei) oder `sealedBase64` (Text), optional `algorithmVersion` (Standard: 2)
+  - Gibt zurück: `{ payloadBase64, utf8Preview, size }`
+
+**OCMF-Verifizierung:**
+- `POST /api/verify` (multipart/form-data)
+  - Felder: `xml` (Datei) oder `xmlText` (Text): Transparenz-XML mit `<signedData format="ocmf">` und optional `<publicKey>`
+  - Optional: `publicKeyPem` (Text, PEM) oder `publicKeyBase64` (Text, Base64-DER), falls kein `<publicKey>` im XML enthalten ist
+  - Gibt zurück: `{ ok: boolean, errors: Error[] | [], format: "OCMF" }`
+
+### Beispiel: Verifizierung via cURL
+
+**XML-Datei hochladen:**
+
+```bash
+curl -s -X POST http://localhost:8080/api/verify \
+  -F xml=@/path/to/transparency.xml | jq
+```
+
+**XML und Schlüssel direkt senden:**
+
+```bash
+curl -s -X POST http://localhost:8080/api/verify \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode "xmlText=$(cat /path/to/transparency.xml)" \
+  --data-urlencode "publicKeyPem=$(cat /path/to/public.pem)" | jq
+```
+
+### Als Bibliothek nutzen
+
+Sie können SAFESealing auch direkt in Ihre Java-Anwendung einbinden.
+
+1. **JAR-Datei hinzufügen**:
+   - Fügen Sie die `safesealing*.jar` Datei zu Ihrem Projekt hinzu
+
+2. **SAFESealer verwenden**:
 
 ```java
-    PrivateKey  senderPrivateKey;
-    Long        uniqueID;
-    byte[]      payload;
-    ...
-    SAFESealSealer  sealer  = new SAFESealSealer();
-        
-    byte[] sealedForTransport =  sealer.seal(senderPrivateKey, null, payload, uniqueID);
+import com.metabit.custom.safe.safeseal.SAFESealSealer;
+// ...
+
+PrivateKey senderPrivateKey;  // Ihr privater Schlüssel
+Long uniqueID;                 // Eindeutige ID
+byte[] payload;                // Die zu versiegelnden Daten
+
+SAFESealSealer sealer = new SAFESealSealer();
+byte[] sealedForTransport = sealer.seal(senderPrivateKey, null, payload, uniqueID);
 ```
-The resulting byte array contains the padded, encrypted, formatted, serialised representation ready for transport.
 
+Das resultierende Byte-Array enthält die gepaddeten, verschlüsselten, formatierten und serialisierten Daten, die transportbereit sind.
 
-# development
+### Projekt bauen
 
-In IntelliJ open the project as a maven project (choose the pom.xml file).
+**Von Source bauen:**
 
-The main entry points of the application are the SAFESealingSealer and SAFESealingRevealer classes.
+Beachten Sie, dass Maven installiert sein muss: https://maven.apache.org/
 
-The application has 4 major packages.
-* safeseal: API and commandline test
-* iip:      this contains the core cryptography
-* shared:   constants, functions, algorithm specifications
-* safeseal/impl: the implementation behind the API
+```bash
+# Projekt kompilieren und JAR erstellen (inklusive Tests)
+mvn clean package
+```
 
-Additional crypto algorithms are to be added to shared/AlgorithmSpecCollection.java, and tested before use.
+Dies erstellt JAR-Dateien im `target`-Ordner (`safesealing*.jar`). Die Tests können einige Zeit in Anspruch nehmen.
 
-# background
-## padding procedure description
+```bash
+# Lokal installieren (für Nutzung in anderen Projekten)
+mvn install
+```
 
-Integrity without knowledge of payload data (plaintext) is achieved by to applying a random sequence of byte (nonce) 
-to the message multiple times for protective purposes. 
-This sequence is in no way related to the message contents. Its sole purpose is for integrity validation.
+**Für schnelleren Build (ohne Tests):**
 
-The message has to be encrypted with an encryption algorithm which provides a solid degree of diffusion
-(see [references](#references) for background on diffusion; also see Avalanche Effect).
+```bash
+mvn -Dmaven.test.skip=true -Dmaven.javadoc.skip=true -q package
+```
 
-After decryption, the padding is checked for consistency of the protective nonce values. Should the ciphertext have been
-changed, the change will have propagated to the protective nonce, where it will be detected.
+## Entwicklung
 
-Thus, integrity can be provided without use of the plaintext contents.
+### Projektstruktur
 
-# implementation
+In IntelliJ öffnen Sie das Projekt als Maven-Projekt (wählen Sie die `pom.xml` Datei).
 
-This repository contains both the core algorithm implementation, tests, 
-as well as code for use as a library component for integration, including serialisation.
+Die Haupt-Einstiegspunkte sind die Klassen `SAFESealingSealer` und `SAFESealingRevealer`.
 
-The core algorithm described above is implemented in the class InterleavedIntegrityPadding.java; it is pure JDK Java.
+Das Projekt besteht aus 4 Haupt-Paketen:
 
-The library uses the BouncyCastle crypto provider library.
+- **safeseal**: API und Kommandozeilen-Tests
+- **iip**: Enthält die Kern-Kryptographie (InterleavedIntegrityPadding.java – reines JDK Java)
+- **shared**: Konstanten, Funktionen, Algorithmus-Spezifikationen
+- **safeseal/impl**: Die Implementierung hinter der API
 
-The tests use additional libraries and maven build engine plugins.
+### Abhängigkeiten
 
-# References
+- **BouncyCastle**: Kryptographie-Provider-Bibliothek
+- **Javalin**: Web-Framework für die REST-API
+- **Maven**: Build-Engine
+
+### Zusätzliche Krypto-Algorithmen hinzufügen
+
+Neue Verschlüsselungsalgorithmen müssen zu `shared/AlgorithmSpecCollection.java` hinzugefügt und getestet werden, bevor sie verwendet werden können.
+
+## Hintergrund & Referenzen
+
+Das IIP-Verfahren basiert auf den Grundlagen der Informationstheorie und Kryptographie:
+
+- **Diffusion**: Veränderungen im Klartext sollten sich über den gesamten verschlüsselten Text verteilen (siehe Avalanche-Effekt)
+- **Ohne Plaintext-Kenntnis**: Die Integritätsprüfung erfolgt ohne Kenntnis der ursprünglichen Nachricht
+
+### Wissenschaftliche Referenzen
 
 * [1] Claude E. Shannon, "A Mathematical Theory of Cryptography", Bell System Technical Memo MM 45-110-02, September 1, 1945.
 * [2] Claude E. Shannon, "Communication Theory of Secrecy Systems", Bell System Technical Journal, vol. 28-4, pages 656–715, 1949.
 * [3] "Information Theory and Entropy". Model Based Inference in the Life Sciences: A Primer on Evidence. Springer New York. 2008-01-01. pp. 51–82. doi:10.1007/978-0-387-74075-1_3. ISBN 9780387740737.
-

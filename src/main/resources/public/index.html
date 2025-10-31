@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="handelsblatt-light">
+<html lang="en" data-theme="underblush">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,19 +7,52 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
   <style>
-    [data-theme="handelsblatt-light"] {
-      --p: 0 92 163; /* Primary: Handelsblatt-Blau */
-      --s: 45 99 107; /* Secondary: Dezentes Teal */
-      --a: 0 149 158; /* Accent: Lebendiges Blau-Grün */
-      --n: 59 58 56; /* Neutral: Dunkelgrau */
-      --b1: 255 255 255; /* Base: Weiß */
-      --b2: 249 250 251; /* Base 2: Sehr helles Grau */
-      --b3: 243 244 246; /* Base 3: Hellgrau */
-      --bc: 31 41 55; /* Base Content: Dunkelgrau für Text */
-      --in: 59 130 246; /* Info: Blau */
-      --su: 16 185 129; /* Success: Grün */
-      --wa: 251 146 60; /* Warning: Orange */
-      --er: 239 68 68; /* Error: Rot */
+    [data-theme="underblush"] {
+      /* Base colors - HSL format for daisyUI */
+      --b1: 38 47% 81%; /* rgb(229 212 182) - beige base */
+      --b2: 38 47% 81%; /* rgb(229 212 182) - beige base */
+      --b3: 14 92% 53%; /* rgb(245 79 27) - orange accent */
+      --bc: 232 33% 18%; /* rgb(30 34 60) - dark navy content */
+      
+      /* Primary colors */
+      --p: 25 93% 71%; /* rgb(250 169 112) - peach primary */
+      --pc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+      
+      /* Secondary colors */
+      --s: 14 92% 53%; /* rgb(245 79 27) - orange secondary */
+      --sc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+      
+      /* Accent colors */
+      --a: 45 68% 66%; /* rgb(227 198 110) - golden accent */
+      --ac: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+      
+      /* Neutral colors */
+      --n: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+      --nc: 38 47% 81%; /* rgb(229 212 182) - beige */
+      
+      /* Info colors */
+      --in: 14 92% 53%; /* rgb(245 79 27) - orange */
+      --inc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+      
+      /* Success colors */
+      --su: 14 92% 53%; /* rgb(245 79 27) - orange */
+      --suc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+      
+      /* Warning colors */
+      --wa: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+      --wac: 38 47% 81%; /* rgb(229 212 182) - beige */
+      
+      /* Error colors */
+      --er: 212 38% 47%; /* rgb(74 116 164) - blue-gray */
+      --erc: 38 47% 81%; /* rgb(229 212 182) - beige */
+      
+      /* Border radius - matching DesiUI settings */
+      --rounded-btn: 2rem;
+      --rounded-box: 2rem;
+      --rounded-badge: 2rem;
+      
+      /* Border */
+      --border-btn: 1px;
     }
   </style>
   <script>
@@ -150,7 +183,7 @@
 
     <!-- Operations Section -->
     <section>
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <!-- Seal Card -->
         <div class="card bg-base-100 shadow-lg border border-base-300">
           <div class="card-body">
@@ -315,6 +348,65 @@
             </div>
           </div>
         </div>
+
+        <!-- Verify OCMF Card -->
+        <div class="card bg-base-100 shadow-lg border border-base-300">
+          <div class="card-body">
+            <h2 class="card-title text-xl mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              Verify OCMF (Transparenz-XML)
+            </h2>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium">Transparenz-XML</span>
+              </label>
+              <input id="xmlFile" type="file" class="file-input file-input-bordered file-input-accent w-full" />
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium">Or XML Text</span>
+              </label>
+              <textarea 
+                id="xmlText" 
+                class="textarea textarea-bordered w-full min-h-32 font-mono text-sm" 
+                placeholder="Paste Transparenz-XML here...">
+              </textarea>
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium text-xs">Optional Public Key (PEM)</span>
+              </label>
+              <textarea 
+                id="verifyPublicKeyPem" 
+                class="textarea textarea-bordered w-full min-h-28 font-mono text-xs" 
+                placeholder="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----">
+              </textarea>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <div class="flex flex-wrap gap-3 mb-4">
+              <button class="btn btn-accent btn-block sm:btn-auto" onclick="doVerify()">
+                Verify
+              </button>
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium text-xs">Verification Result</span>
+              </label>
+              <div class="mockup-code bg-base-200 text-xs">
+                <pre id="verifyOut" class="text-xs p-4 overflow-x-auto"></pre>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
     </section>
 
@@ -341,6 +433,21 @@
         healthEl.textContent = 'offline';
         healthEl.className = 'badge badge-error ml-1';
       });
+
+    async function doVerify(){
+      const form = new FormData();
+      const xmlFile = document.getElementById('xmlFile').files[0];
+      const xmlText = document.getElementById('xmlText').value.trim();
+      const publicKeyPem = document.getElementById('verifyPublicKeyPem').value.trim();
+      if(xmlFile){ form.append('xml', xmlFile); } else if(xmlText){ form.append('xmlText', xmlText); }
+      if(publicKeyPem){ form.append('publicKeyPem', publicKeyPem); }
+      try{
+        const data = await postForm('/api/verify', form);
+        document.getElementById('verifyOut').textContent = JSON.stringify(data, null, 2);
+      }catch(e){
+        document.getElementById('verifyOut').textContent = JSON.stringify({ error: e.message }, null, 2);
+      }
+    }
   </script>
 </body>
 </html>
