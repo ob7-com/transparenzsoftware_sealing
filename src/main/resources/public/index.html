@@ -4,6 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Transparenzsoftware OB7 – Webversion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
   <link href="/theme.css" rel="stylesheet" type="text/css" />
@@ -35,13 +38,20 @@
       
       // Show selected tab content
       const tabContent = document.getElementById('tab-' + tabName);
-      if(tabContent) tabContent.classList.remove('hidden');
+      if(tabContent) {
+        tabContent.classList.remove('hidden');
+      }
       
       // Add active state to selected menu item
-      const menuItem = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+      const menuItem = document.querySelector(`[data-tab="${tabName}"]`);
       if(menuItem) {
         menuItem.classList.add('active');
         menuItem.parentElement.classList.add('active');
+      }
+      
+      // Update URL hash without scrolling
+      if(history.pushState) {
+        history.pushState(null, null, '#' + tabName);
       }
     }
 
@@ -55,7 +65,9 @@
 
     async function doSeal(){
       const form = new FormData();
-      const privateKeyPem = document.getElementById('privateKeyPem').value.trim();
+      // Try to get private key from seal tab first, then fallback to settings tab
+      let privateKeyPem = document.getElementById('sealPrivateKeyPem')?.value.trim() || 
+                         document.getElementById('privateKeyPem')?.value.trim() || '';
       const payloadText = document.getElementById('payloadText').value;
       const payloadFile = document.getElementById('payloadFile').files[0];
       const uniqueId = document.getElementById('uniqueId').value.trim();
@@ -79,7 +91,9 @@
 
     async function doReveal(){
       const form = new FormData();
-      const publicKeyPem = document.getElementById('publicKeyPem').value.trim();
+      // Try to get public key from reveal tab first, then fallback to settings tab
+      const publicKeyPem = document.getElementById('revealPublicKeyPem')?.value.trim() || 
+                          document.getElementById('publicKeyPem')?.value.trim() || '';
       const sealedFile = document.getElementById('sealedFile').files[0];
       const sealedBase64 = document.getElementById('sealedBase64').value.trim();
       const alg = document.getElementById('algReveal').value;
@@ -124,6 +138,40 @@
       }
     }
 
+    function showToast(message, type = 'success') {
+      const toastId = 'toast-' + Date.now();
+      const toastHtml = `
+        <div id="${toastId}" class="toast toast-top toast-end">
+          <div class="alert alert-${type}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>${message}</span>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', toastHtml);
+      const toast = document.getElementById(toastId);
+      setTimeout(() => {
+        toast.classList.add('animate-out', 'fade-out');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function updateVerifyButtonState() {
+      const xmlFile = document.getElementById('xmlFile').files[0];
+      const xmlText = document.getElementById('xmlText').value.trim();
+      const verifyButton = document.getElementById('verifyButton');
+      
+      if (xmlFile || xmlText) {
+        verifyButton.disabled = false;
+        verifyButton.classList.remove('btn-disabled');
+      } else {
+        verifyButton.disabled = true;
+        verifyButton.classList.add('btn-disabled');
+      }
+    }
+
     function displayVerifyResults(data) {
       const resultContainer = document.getElementById('verifyResultContainer');
       
@@ -148,15 +196,11 @@
       }
 
       if(data.ok && data.measurementData) {
+        // Show success toast
+        showToast('Verifizierung erfolgreich', 'success');
+        
         const md = data.measurementData;
         let html = `
-          <div class="alert alert-success mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span class="text-lg font-semibold">Verifizierung erfolgreich</span>
-          </div>
-
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         `;
 
@@ -256,7 +300,35 @@
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
-      switchTab('verify');
+      // Set up click handlers for navigation
+      document.querySelectorAll('.menu-item[data-tab]').forEach(item => {
+        item.addEventListener('click', function(e) {
+          e.preventDefault();
+          const tabName = this.getAttribute('data-tab');
+          switchTab(tabName);
+        });
+      });
+      
+      // Check for hash in URL, otherwise default to verify
+      const hash = window.location.hash.slice(1);
+      const defaultTab = hash && ['verify', 'seal', 'reveal', 'settings'].includes(hash) ? hash : 'verify';
+      switchTab(defaultTab);
+      
+      // Set up file input listener for verify button state
+      const xmlFile = document.getElementById('xmlFile');
+      const xmlText = document.getElementById('xmlText');
+      
+      if (xmlFile) {
+        xmlFile.addEventListener('change', updateVerifyButtonState);
+      }
+      if (xmlText) {
+        xmlText.addEventListener('input', updateVerifyButtonState);
+      }
+      
+      // Initial button state
+      updateVerifyButtonState();
+      
+      // Health check
       fetch('/api/health')
         .then(r => r.json())
         .then(j => {
@@ -289,7 +361,7 @@
       </div>
       <ul class="menu p-4 w-full">
         <li>
-          <a class="menu-item active" onclick="switchTab('verify'); return false;" href="#">
+          <a class="menu-item active" data-tab="verify" href="javascript:void(0)">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
@@ -297,7 +369,7 @@
           </a>
         </li>
         <li>
-          <a class="menu-item" onclick="switchTab('seal'); return false;" href="#">
+          <a class="menu-item" data-tab="seal" href="javascript:void(0)">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
@@ -305,7 +377,7 @@
           </a>
         </li>
         <li>
-          <a class="menu-item" onclick="switchTab('reveal'); return false;" href="#">
+          <a class="menu-item" data-tab="reveal" href="javascript:void(0)">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
             </svg>
@@ -313,7 +385,7 @@
           </a>
         </li>
         <li>
-          <a class="menu-item" onclick="switchTab('settings'); return false;" href="#">
+          <a class="menu-item" data-tab="settings" href="javascript:void(0)">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -342,11 +414,22 @@
               <label class="label">
                 <span class="label-text font-semibold text-lg">Transparenz-XML Datei</span>
               </label>
-              <input id="xmlFile" type="file" accept=".xml" class="file-input file-input-bordered file-input-primary w-full file-input-lg" />
+              <input id="xmlFile" type="file" accept=".xml" class="file-input file-input-bordered file-input-primary max-w-md file-input-lg" />
               <label class="label">
                 <span class="label-text-alt text-base-content/50">oder XML-Text einfügen</span>
               </label>
             </div>
+
+            <div class="form-control mb-4">
+              <button id="verifyButton" class="btn btn-primary btn-lg max-w-md" onclick="doVerify()" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Verifizieren
+              </button>
+            </div>
+
+            <div class="divider my-4"></div>
 
             <div class="form-control mb-4 collapse collapse-arrow">
               <input type="checkbox" />
@@ -376,15 +459,6 @@
                 </div>
               </div>
             </div>
-
-            <div class="divider my-4"></div>
-
-            <button class="btn btn-primary btn-lg btn-block" onclick="doVerify()">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              Verifizieren
-            </button>
           </div>
         </div>
 
@@ -419,6 +493,21 @@
                 class="textarea textarea-bordered w-full min-h-32 font-mono text-sm" 
                 placeholder="Enter text to seal...">
               </textarea>
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium">Private Key (PEM, PKCS#8)</span>
+                <span class="label-text-alt text-base-content/50">required</span>
+              </label>
+              <textarea 
+                id="sealPrivateKeyPem" 
+                class="textarea textarea-bordered w-full min-h-32 font-mono text-xs" 
+                placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----">
+              </textarea>
+              <label class="label">
+                <span class="label-text-alt text-base-content/50">Sie können auch den Schlüssel aus dem Einstellungen-Tab verwenden</span>
+              </label>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -509,6 +598,21 @@
                 class="textarea textarea-bordered w-full min-h-32 font-mono text-sm" 
                 placeholder="Paste base64 encoded sealed data...">
               </textarea>
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-medium">Public Key (PEM, X.509)</span>
+                <span class="label-text-alt text-base-content/50">required</span>
+              </label>
+              <textarea 
+                id="revealPublicKeyPem" 
+                class="textarea textarea-bordered w-full min-h-32 font-mono text-xs" 
+                placeholder="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----">
+              </textarea>
+              <label class="label">
+                <span class="label-text-alt text-base-content/50">Sie können auch den Schlüssel aus dem Einstellungen-Tab verwenden</span>
+              </label>
             </div>
 
             <div class="form-control mb-6">
@@ -624,6 +728,22 @@
     }
     .menu-item:hover {
       background-color: hsl(var(--b2));
+    }
+    /* Ensure tab-content is visible by default unless hidden */
+    .tab-content {
+      display: block !important;
+    }
+    .tab-content.hidden {
+      display: none !important;
+    }
+    /* Button hover styling similar to menu */
+    #verifyButton:not(:disabled):hover {
+      background-color: hsl(var(--p) / 0.8);
+      border-color: hsl(var(--p) / 0.8);
+    }
+    #verifyButton:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   </style>
 </body>
