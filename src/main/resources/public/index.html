@@ -6,55 +6,8 @@
   <title>SAFESealing – Demo</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
-  <style>
-    [data-theme="underblush"] {
-      /* Base colors - HSL format for daisyUI */
-      --b1: 38 47% 81%; /* rgb(229 212 182) - beige base */
-      --b2: 38 47% 81%; /* rgb(229 212 182) - beige base */
-      --b3: 14 92% 53%; /* rgb(245 79 27) - orange accent */
-      --bc: 232 33% 18%; /* rgb(30 34 60) - dark navy content */
-      
-      /* Primary colors */
-      --p: 25 93% 71%; /* rgb(250 169 112) - peach primary */
-      --pc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
-      
-      /* Secondary colors */
-      --s: 14 92% 53%; /* rgb(245 79 27) - orange secondary */
-      --sc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
-      
-      /* Accent colors */
-      --a: 45 68% 66%; /* rgb(227 198 110) - golden accent */
-      --ac: 232 33% 18%; /* rgb(30 34 60) - dark navy */
-      
-      /* Neutral colors */
-      --n: 232 33% 18%; /* rgb(30 34 60) - dark navy */
-      --nc: 38 47% 81%; /* rgb(229 212 182) - beige */
-      
-      /* Info colors */
-      --in: 14 92% 53%; /* rgb(245 79 27) - orange */
-      --inc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
-      
-      /* Success colors */
-      --su: 14 92% 53%; /* rgb(245 79 27) - orange */
-      --suc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
-      
-      /* Warning colors */
-      --wa: 232 33% 18%; /* rgb(30 34 60) - dark navy */
-      --wac: 38 47% 81%; /* rgb(229 212 182) - beige */
-      
-      /* Error colors */
-      --er: 212 38% 47%; /* rgb(74 116 164) - blue-gray */
-      --erc: 38 47% 81%; /* rgb(229 212 182) - beige */
-      
-      /* Border radius - matching DesiUI settings */
-      --rounded-btn: 2rem;
-      --rounded-box: 2rem;
-      --rounded-badge: 2rem;
-      
-      /* Border */
-      --border-btn: 1px;
-    }
-  </style>
+  <!-- Central Design System Theme -->
+  <link href="/theme.css" rel="stylesheet" type="text/css" />
   <script>
     async function postForm(url, form){
       const res = await fetch(url, { method:'POST', body: form });
