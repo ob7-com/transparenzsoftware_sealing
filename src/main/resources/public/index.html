@@ -114,10 +114,7 @@
     async function doVerify(){
       const form = new FormData();
       const xmlFile = document.getElementById('xmlFile').files[0];
-      const xmlText = document.getElementById('xmlText').value.trim();
-      const publicKeyPem = document.getElementById('verifyPublicKeyPem').value.trim();
-      if(xmlFile){ form.append('xml', xmlFile); } else if(xmlText){ form.append('xmlText', xmlText); }
-      if(publicKeyPem){ form.append('publicKeyPem', publicKeyPem); }
+      if(xmlFile){ form.append('xml', xmlFile); }
       
       // Show loading state
       const resultContainer = document.getElementById('verifyResultContainer');
@@ -141,29 +138,36 @@
     function showToast(message, type = 'success') {
       const toastId = 'toast-' + Date.now();
       const toastHtml = `
-        <div id="${toastId}" class="toast toast-top toast-end">
-          <div class="alert alert-${type}">
+        <div id="${toastId}" class="toast toast-top toast-end z-50">
+          <div class="alert alert-${type} shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>${message}</span>
+            <span class="font-semibold">${message}</span>
           </div>
         </div>
       `;
       document.body.insertAdjacentHTML('beforeend', toastHtml);
       const toast = document.getElementById(toastId);
+      // Fade in animation
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s ease-in';
       setTimeout(() => {
-        toast.classList.add('animate-out', 'fade-out');
+        toast.style.opacity = '1';
+      }, 10);
+      // Fade out and remove after 3 seconds
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease-out';
         setTimeout(() => toast.remove(), 300);
       }, 3000);
     }
 
     function updateVerifyButtonState() {
       const xmlFile = document.getElementById('xmlFile').files[0];
-      const xmlText = document.getElementById('xmlText').value.trim();
       const verifyButton = document.getElementById('verifyButton');
       
-      if (xmlFile || xmlText) {
+      if (xmlFile) {
         verifyButton.disabled = false;
         verifyButton.classList.remove('btn-disabled');
       } else {
@@ -316,34 +320,13 @@
       
       // Set up file input listener for verify button state
       const xmlFile = document.getElementById('xmlFile');
-      const xmlText = document.getElementById('xmlText');
       
       if (xmlFile) {
         xmlFile.addEventListener('change', updateVerifyButtonState);
       }
-      if (xmlText) {
-        xmlText.addEventListener('input', updateVerifyButtonState);
-      }
       
       // Initial button state
       updateVerifyButtonState();
-      
-      // Health check
-      fetch('/api/health')
-        .then(r => r.json())
-        .then(j => {
-          const healthEl = document.getElementById('health');
-          const status = j.status || 'n/a';
-          healthEl.textContent = status;
-          healthEl.className = status === 'ok' || status === 'healthy' 
-            ? 'badge badge-success ml-1' 
-            : 'badge badge-warning ml-1';
-        })
-        .catch(() => {
-          const healthEl = document.getElementById('health');
-          healthEl.textContent = 'offline';
-          healthEl.className = 'badge badge-error ml-1';
-        });
     });
   </script>
 </head>
@@ -352,12 +335,10 @@
     <!-- Sidebar Navigation -->
     <div class="w-64 min-h-screen bg-base-100 shadow-lg border-r border-base-300">
       <div class="p-4 border-b border-base-300">
-        <h1 class="text-2xl font-bold text-base-content">Transparenzsoftware OB7</h1>
-        <p class="text-xs text-base-content/70 mt-1">Webversion</p>
-        <div class="badge badge-sm badge-outline mt-2">
-          <span class="text-xs">Status:</span>
-          <span id="health" class="ml-1 text-xs">checking...</span>
-        </div>
+        <a href="#verify" onclick="event.preventDefault(); switchTab('verify'); window.scrollTo(0, 0);" class="flex items-center mb-3 hover:opacity-80 transition-opacity cursor-pointer" title="Zur Startseite">
+          <img src="/logo.png" alt="OB7 Logo" class="h-14 w-14" />
+        </a>
+        <p class="text-base font-semibold text-base-content">Transparenz Software</p>
       </div>
       <ul class="menu p-4 w-full">
         <li>
@@ -415,9 +396,6 @@
                 <span class="label-text font-semibold text-lg">Transparenz-XML Datei</span>
               </label>
               <input id="xmlFile" type="file" accept=".xml" class="file-input file-input-bordered file-input-primary max-w-md file-input-lg" />
-              <label class="label">
-                <span class="label-text-alt text-base-content/50">oder XML-Text einfügen</span>
-              </label>
             </div>
 
             <div class="form-control mb-4">
@@ -427,37 +405,6 @@
                 </svg>
                 Verifizieren
               </button>
-            </div>
-
-            <div class="divider my-4"></div>
-
-            <div class="form-control mb-4 collapse collapse-arrow">
-              <input type="checkbox" />
-              <div class="collapse-title text-sm font-medium">
-                Erweiterte Optionen
-              </div>
-              <div class="collapse-content">
-                <div class="form-control mb-4">
-                  <label class="label">
-                    <span class="label-text font-medium text-xs">XML-Text</span>
-                  </label>
-                  <textarea 
-                    id="xmlText" 
-                    class="textarea textarea-bordered w-full min-h-32 font-mono text-sm" 
-                    placeholder="Transparenz-XML hier einfügen...">
-                  </textarea>
-                </div>
-                <div class="form-control mb-4">
-                  <label class="label">
-                    <span class="label-text font-medium text-xs">Optional: Public Key (PEM, Base64, or Hex)</span>
-                  </label>
-                  <textarea 
-                    id="verifyPublicKeyPem" 
-                    class="textarea textarea-bordered w-full min-h-28 font-mono text-xs" 
-                    placeholder="PEM: -----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\nOr Base64 or Hex format">
-                  </textarea>
-                </div>
-              </div>
             </div>
           </div>
         </div>

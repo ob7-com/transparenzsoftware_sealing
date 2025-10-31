@@ -87,7 +87,7 @@
 
 /* Global design system utilities */
 body[data-theme="underblush"] {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
 }
 
 /* Ensure consistent color scheme */
