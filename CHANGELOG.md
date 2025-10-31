@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Support for multiple value elements (Transaction.Begin and Transaction.End) in XML verification
+- Enhanced measurement data extraction: now correctly processes both Begin and End transactions
+- Test suite for multiple transaction XML files (`VerifyMultipleTransactionsTest`)
+- Comprehensive display of all transaction information:
+  - Energy delivered (calculated from start and end meter readings)
+  - Start and end meter readings with timestamps
+  - Charging duration calculation
+  - Meter serial number
+  - All metadata from OCMF signed data
+
+### Fixed
+- VerifyController now correctly processes XML files with both Transaction.Begin and Transaction.End value elements
+- Previously only the first signedData block was processed, missing the end transaction data
+- Energy delivered values and end meter readings are now correctly extracted and displayed
+
+### Changed
 - Modern UI redesign with Tailwind CSS and daisyUI component library
 - Professional Handelsblatt-style color theme (light, business-oriented design)
 - Docker support with Dockerfile and .dockerignore for containerized deployment

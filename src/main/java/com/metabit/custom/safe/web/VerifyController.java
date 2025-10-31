@@ -13,6 +13,7 @@ import io.javalin.http.UploadedFile;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -74,9 +75,41 @@ final class VerifyController
                 return;
             }
 
-            // Extract OCMF signedData block (very lenient)
-            String signedData = extractSignedData(xml);
-            if (signedData == null)
+            // Extract all value elements to find Begin and End transactions
+            List<String> valueElements = extractAllValueElements(xml);
+            if (valueElements.isEmpty())
+            {
+                ctx.status(400).json(Map.of("error", "No value elements found in XML"));
+                return;
+            }
+
+            // Find Begin and End value elements
+            String beginValue = null;
+            String endValue = null;
+            for (String valueElem : valueElements) {
+                String context = extractContext(valueElem);
+                if ("Transaction.Begin".equals(context)) {
+                    beginValue = valueElem;
+                } else if ("Transaction.End".equals(context)) {
+                    endValue = valueElem;
+                }
+            }
+
+            // If no explicit Begin/End, use first and last
+            if (beginValue == null && !valueElements.isEmpty()) {
+                beginValue = valueElements.get(0);
+            }
+            if (endValue == null && valueElements.size() > 1) {
+                endValue = valueElements.get(valueElements.size() - 1);
+            } else if (endValue == null && valueElements.size() == 1) {
+                endValue = valueElements.get(0); // Single value - might contain both readings
+            }
+
+            // Extract signedData blocks
+            String beginSignedData = beginValue != null ? extractSignedData(beginValue) : null;
+            String endSignedData = endValue != null && endValue != beginValue ? extractSignedData(endValue) : null;
+
+            if (beginSignedData == null)
             {
                 ctx.status(400).json(Map.of("error", "signedData not found in XML"));
                 return;
@@ -177,31 +210,77 @@ final class VerifyController
 
             // Verify using Transparenzsoftware OCMF parser
             VerificationParser parser = new OCMFVerificationParser();
-            VerificationResult result = parser.parseAndVerify(signedData, publicKeyDer, IntrinsicVerified.NOT_VERIFIED);
-
+            
+            // Verify begin transaction
+            VerificationResult beginResult = null;
+            OCMFVerifiedData beginOcmfData = null;
+            if (beginSignedData != null) {
+                beginResult = parser.parseAndVerify(beginSignedData, publicKeyDer, IntrinsicVerified.NOT_VERIFIED);
+                if (beginResult.isVerified() && beginResult.getVerifiedData() instanceof OCMFVerifiedData) {
+                    beginOcmfData = (OCMFVerifiedData) beginResult.getVerifiedData();
+                }
+            }
+            
+            // Verify end transaction (if different from begin)
+            VerificationResult endResult = null;
+            OCMFVerifiedData endOcmfData = null;
+            if (endSignedData != null && !endSignedData.equals(beginSignedData)) {
+                endResult = parser.parseAndVerify(endSignedData, publicKeyDer, IntrinsicVerified.NOT_VERIFIED);
+                if (endResult.isVerified() && endResult.getVerifiedData() instanceof OCMFVerifiedData) {
+                    endOcmfData = (OCMFVerifiedData) endResult.getVerifiedData();
+                }
+            } else if (endSignedData == null && beginOcmfData != null) {
+                // Single value element - use same data for both
+                endOcmfData = beginOcmfData;
+                endResult = beginResult;
+            }
+            
+            // Overall verification result: both must be verified
+            boolean overallVerified = (beginResult != null && beginResult.isVerified()) &&
+                                     (endResult == null || endResult.isVerified());
+            
             Map<String, Object> out = new HashMap<>();
-            out.put("ok", result.isVerified());
-            // Serialize errors manually to avoid i18n dependency
-            out.put("errors", result.getErrorMessages().stream()
-                    .map(e -> Map.of(
+            out.put("ok", overallVerified);
+            
+            // Combine errors from both verifications
+            List<Map<String, Object>> allErrors = new ArrayList<>();
+            if (beginResult != null) {
+                allErrors.addAll(beginResult.getErrorMessages().stream()
+                    .map(e -> Map.<String, Object>of(
                             "type", e.getType().name(),
                             "message", e.getMessage(),
                             "localizedMessageCode", e.getLocalizedMessageCode()))
                     .toList());
+            }
+            if (endResult != null && endResult != beginResult) {
+                allErrors.addAll(endResult.getErrorMessages().stream()
+                    .map(e -> Map.<String, Object>of(
+                            "type", e.getType().name(),
+                            "message", e.getMessage(),
+                            "localizedMessageCode", e.getLocalizedMessageCode()))
+                    .toList());
+            }
+            out.put("errors", allErrors);
             out.put("format", VerificationType.OCMF.name());
             
             // Extract measurement data if verification was successful
-            if (result.isVerified() && result.getVerifiedData() instanceof OCMFVerifiedData) {
-                OCMFVerifiedData ocmfData = (OCMFVerifiedData) result.getVerifiedData();
-                List<Meter> meters = ocmfData.getMeters();
+            if (overallVerified && (beginOcmfData != null || endOcmfData != null)) {
+                Map<String, Object> measurementData = new HashMap<>();
                 
-                if (meters != null && !meters.isEmpty()) {
-                    Map<String, Object> measurementData = new HashMap<>();
-                    
+                // Collect all meters from begin and end
+                List<Meter> allMeters = new ArrayList<>();
+                if (beginOcmfData != null && beginOcmfData.getMeters() != null) {
+                    allMeters.addAll(beginOcmfData.getMeters());
+                }
+                if (endOcmfData != null && endOcmfData != beginOcmfData && endOcmfData.getMeters() != null) {
+                    allMeters.addAll(endOcmfData.getMeters());
+                }
+                
+                if (!allMeters.isEmpty()) {
                     // Find START and STOP meters
                     Meter startMeter = null;
                     Meter stopMeter = null;
-                    for (Meter meter : meters) {
+                    for (Meter meter : allMeters) {
                         if (meter.getType() == Meter.Type.START) {
                             startMeter = meter;
                         } else if (meter.getType() == Meter.Type.STOP) {
@@ -209,12 +288,12 @@ final class VerifyController
                         }
                     }
                     
-                    // If no explicit START/STOP types, use first and last
-                    if (startMeter == null && !meters.isEmpty()) {
-                        startMeter = meters.get(0);
+                    // If no explicit START/STOP types, use first and last from all meters
+                    if (startMeter == null && !allMeters.isEmpty()) {
+                        startMeter = allMeters.get(0);
                     }
-                    if (stopMeter == null && !meters.isEmpty()) {
-                        stopMeter = meters.get(meters.size() - 1);
+                    if (stopMeter == null && !allMeters.isEmpty()) {
+                        stopMeter = allMeters.get(allMeters.size() - 1);
                     }
                     
                     // Extract start meter reading
@@ -255,23 +334,26 @@ final class VerifyController
                         measurementData.put("duration", formatDuration(duration));
                         measurementData.put("durationSeconds", duration.getSeconds());
                     }
-                    
-                    // Transaction ID if available (from XML)
-                    String transactionId = extractTransactionId(xml);
-                    if (transactionId != null) {
-                        measurementData.put("transactionId", transactionId);
-                    }
-                    
-                    // Additional metadata
-                    if (ocmfData.getMeterSerialNumber() != null) {
-                        measurementData.put("meterSerialNumber", ocmfData.getMeterSerialNumber());
-                    }
-                    if (ocmfData.getMeterModel() != null) {
-                        measurementData.put("meterModel", ocmfData.getMeterModel());
-                    }
-                    
-                    out.put("measurementData", measurementData);
                 }
+                
+                // Transaction ID if available (from XML)
+                String transactionId = extractTransactionId(xml);
+                if (transactionId != null) {
+                    measurementData.put("transactionId", transactionId);
+                }
+                
+                // Additional metadata (prefer end if available, otherwise begin)
+                OCMFVerifiedData metadataSource = endOcmfData != null ? endOcmfData : beginOcmfData;
+                if (metadataSource != null) {
+                    if (metadataSource.getMeterSerialNumber() != null) {
+                        measurementData.put("meterSerialNumber", metadataSource.getMeterSerialNumber());
+                    }
+                    if (metadataSource.getMeterModel() != null) {
+                        measurementData.put("meterModel", metadataSource.getMeterModel());
+                    }
+                }
+                
+                out.put("measurementData", measurementData);
             }
             
             ctx.json(out);
@@ -289,6 +371,26 @@ final class VerifyController
             e.printStackTrace(); // Can be removed in production
             ctx.status(500).json(Map.of("error", msg));
         }
+    }
+
+    private static List<String> extractAllValueElements(String xml)
+    {
+        List<String> valueElements = new ArrayList<>();
+        // Match all <value>...</value> blocks
+        Pattern p = Pattern.compile("<value[^>]*>(.*?)</value>", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(xml);
+        while (m.find()) {
+            valueElements.add(m.group(0)); // Include the full <value>...</value> element
+        }
+        return valueElements;
+    }
+
+    private static String extractContext(String valueElement)
+    {
+        Pattern p = Pattern.compile("context\\s*=\\s*[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(valueElement);
+        if (m.find()) return m.group(1).trim();
+        return null;
     }
 
     private static String extractSignedData(String xml)
