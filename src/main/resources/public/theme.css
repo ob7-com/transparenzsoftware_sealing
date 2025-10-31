@@ -21,58 +21,68 @@
 
 [data-theme="underblush"] {
   /* Base colors - HSL format for daisyUI */
-  --b1: 38 47% 81%; /* rgb(229 212 182) - beige base */
-  --b2: 38 47% 81%; /* rgb(229 212 182) - beige base */
-  --b3: 14 92% 53%; /* rgb(245 79 27) - orange accent */
-  --bc: 232 33% 18%; /* rgb(30 34 60) - dark navy content */
+  /* Used for: page background, card backgrounds, modal backgrounds */
+  --b1: 38 47% 81%; /* rgb(229 212 182) - beige base - main background */
+  --b2: 38 47% 81%; /* rgb(229 212 182) - beige base - secondary background */
+  --b3: 14 92% 53%; /* rgb(245 79 27) - orange - tertiary background */
+  --bc: 232 33% 18%; /* rgb(30 34 60) - dark navy - base content/text color */
   
-  /* Primary colors */
+  /* Primary colors - Used for: primary buttons, links, active states */
   --p: 25 93% 71%; /* rgb(250 169 112) - peach primary */
-  --pc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+  --pc: 232 33% 18%; /* rgb(30 34 60) - dark navy - primary content text */
   
-  /* Secondary colors */
+  /* Secondary colors - Used for: secondary buttons, accents */
   --s: 14 92% 53%; /* rgb(245 79 27) - orange secondary */
-  --sc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+  --sc: 232 33% 18%; /* rgb(30 34 60) - dark navy - secondary content text */
   
-  /* Accent colors */
+  /* Accent colors - Used for: highlights, focus states, special elements */
   --a: 45 68% 66%; /* rgb(227 198 110) - golden accent */
-  --ac: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+  --ac: 232 33% 18%; /* rgb(30 34 60) - dark navy - accent content text */
   
-  /* Neutral colors */
+  /* Neutral colors - Used for: neutral buttons, borders, dividers */
   --n: 232 33% 18%; /* rgb(30 34 60) - dark navy */
-  --nc: 38 47% 81%; /* rgb(229 212 182) - beige */
+  --nc: 38 47% 81%; /* rgb(229 212 182) - beige - neutral content text */
   
-  /* Info colors */
+  /* Info colors - Used for: info alerts, info badges */
   --in: 14 92% 53%; /* rgb(245 79 27) - orange */
-  --inc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+  --inc: 232 33% 18%; /* rgb(30 34 60) - dark navy - info content text */
   
-  /* Success colors */
+  /* Success colors - Used for: success alerts, success badges, checkmarks */
   --su: 14 92% 53%; /* rgb(245 79 27) - orange */
-  --suc: 232 33% 18%; /* rgb(30 34 60) - dark navy */
+  --suc: 232 33% 18%; /* rgb(30 34 60) - dark navy - success content text */
   
-  /* Warning colors */
+  /* Warning colors - Used for: warning alerts, warning badges */
   --wa: 232 33% 18%; /* rgb(30 34 60) - dark navy */
-  --wac: 38 47% 81%; /* rgb(229 212 182) - beige */
+  --wac: 38 47% 81%; /* rgb(229 212 182) - beige - warning content text */
   
-  /* Error colors */
+  /* Error colors - Used for: error alerts, error badges, destructive actions */
   --er: 212 38% 47%; /* rgb(74 116 164) - blue-gray */
-  --erc: 38 47% 81%; /* rgb(229 212 182) - beige */
+  --erc: 38 47% 81%; /* rgb(229 212 182) - beige - error content text */
   
   /* Border radius - matching DesiUI settings */
-  --rounded-btn: 2rem;
-  --rounded-box: 2rem;
-  --rounded-badge: 2rem;
-  --rounded-selector: 2rem;
-  --rounded-field: 2rem;
+  /* Used for: buttons, inputs, selects, tabs */
+  --rounded-btn: 2rem; /* Button border radius */
+  --rounded-box: 2rem; /* Card, modal, alert border radius */
+  --rounded-badge: 2rem; /* Badge border radius */
+  --rounded-selector: 2rem; /* Checkbox, toggle, radio border radius */
+  --rounded-field: 0.25rem; /* Input fields, textarea border radius (less rounded) */
   
-  /* Border */
-  --border-btn: 1px;
+  /* Alternative radius variable names (for compatibility) */
+  --radius-selector: 2rem;
+  --radius-field: 0.25rem;
+  --radius-box: 2rem;
   
-  /* Additional design system variables */
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --depth: 1;
-  --noise: 0;
+  /* Border width */
+  --border-btn: 1px; /* Button border width */
+  --border: 1px; /* General border width */
+  
+  /* Size variables - Used for: component sizing */
+  --size-selector: 0.25rem; /* Checkbox, toggle, radio base size */
+  --size-field: 0.25rem; /* Input, textarea, select base size */
+  
+  /* Effect variables */
+  --depth: 1; /* 3D depth effect (0 = off, 1 = on) */
+  --noise: 0; /* Noise pattern effect (0 = off, 1 = on) */
 }
 
 /* Global design system utilities */

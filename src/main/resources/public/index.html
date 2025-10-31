@@ -1,12 +1,11 @@
 <!doctype html>
-<html lang="en" data-theme="underblush">
+<html lang="de" data-theme="underblush">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SAFESealing – Demo</title>
+  <title>Transparenzsoftware OB7 – Webversion</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
-  <!-- Central Design System Theme -->
   <link href="/theme.css" rel="stylesheet" type="text/css" />
   <script>
     async function postForm(url, form){
@@ -22,12 +21,36 @@
       return new Blob([u8]);
     }
 
+    let currentTab = 'verify';
+
+    function switchTab(tabName) {
+      currentTab = tabName;
+      // Hide all tab contents
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      // Remove active state from all menu items
+      document.querySelectorAll('.menu-item').forEach(el => {
+        el.classList.remove('active');
+        el.parentElement.classList.remove('active');
+      });
+      
+      // Show selected tab content
+      const tabContent = document.getElementById('tab-' + tabName);
+      if(tabContent) tabContent.classList.remove('hidden');
+      
+      // Add active state to selected menu item
+      const menuItem = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+      if(menuItem) {
+        menuItem.classList.add('active');
+        menuItem.parentElement.classList.add('active');
+      }
+    }
+
     async function generateKeys(){
       try {
         const data = await fetch('/api/keys/generate', { method:'POST' }).then(r=>r.json());
         document.getElementById('publicKeyPem').value = data.publicKeyPem || '';
         document.getElementById('privateKeyPem').value = data.privateKeyPem || '';
-      } catch(e){ alert('Key generation failed: '+e.message); }
+      } catch(e){ alert('Schlüsselerzeugung fehlgeschlagen: '+e.message); }
     }
 
     async function doSeal(){
@@ -51,7 +74,7 @@
         const url = URL.createObjectURL(blob);
         const link = document.getElementById('sealedDownload');
         link.href = url; link.download = 'sealed.der'; link.style.display='inline-block';
-      }catch(e){ alert('Seal failed: '+e.message); }
+      }catch(e){ alert('Seal fehlgeschlagen: '+e.message); }
     }
 
     async function doReveal(){
@@ -71,82 +94,314 @@
         const link = document.getElementById('payloadDownload');
         link.href = url; link.download = 'payload.bin'; link.style.display='inline-block';
         document.getElementById('payloadPreview').textContent = data.utf8Preview || '';
-      }catch(e){ alert('Reveal failed: '+e.message); }
+      }catch(e){ alert('Reveal fehlgeschlagen: '+e.message); }
     }
+
+    async function doVerify(){
+      const form = new FormData();
+      const xmlFile = document.getElementById('xmlFile').files[0];
+      const xmlText = document.getElementById('xmlText').value.trim();
+      const publicKeyPem = document.getElementById('verifyPublicKeyPem').value.trim();
+      if(xmlFile){ form.append('xml', xmlFile); } else if(xmlText){ form.append('xmlText', xmlText); }
+      if(publicKeyPem){ form.append('publicKeyPem', publicKeyPem); }
+      
+      // Show loading state
+      const resultContainer = document.getElementById('verifyResultContainer');
+      resultContainer.innerHTML = '<div class="flex justify-center items-center p-8"><span class="loading loading-spinner loading-lg"></span></div>';
+      
+      try{
+        const data = await postForm('/api/verify', form);
+        displayVerifyResults(data);
+      }catch(e){
+        resultContainer.innerHTML = `
+          <div class="alert alert-error">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Fehler: ${e.message}</span>
+          </div>
+        `;
+      }
+    }
+
+    function displayVerifyResults(data) {
+      const resultContainer = document.getElementById('verifyResultContainer');
+      
+      if(!data.ok) {
+        resultContainer.innerHTML = `
+          <div class="alert alert-error mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Verifizierung fehlgeschlagen</span>
+          </div>
+          <div class="card bg-base-100 shadow">
+            <div class="card-body">
+              <h3 class="font-bold text-lg mb-2">Fehlerdetails:</h3>
+              <ul class="list-disc list-inside">
+                ${data.errors ? data.errors.map(e => `<li>${e.message}</li>`).join('') : '<li>Unbekannter Fehler</li>'}
+              </ul>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if(data.ok && data.measurementData) {
+        const md = data.measurementData;
+        let html = `
+          <div class="alert alert-success mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="text-lg font-semibold">Verifizierung erfolgreich</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        `;
+
+        // Start meter reading
+        if(md.start) {
+          html += `
+            <div class="card bg-base-100 shadow-md">
+              <div class="card-body">
+                <h3 class="card-title text-sm font-semibold text-base-content/70">Zählerstand Start</h3>
+                <p class="text-3xl font-bold text-primary">${md.start.meterReading.toFixed(3)} <span class="text-lg">${md.start.unit}</span></p>
+                ${md.start.timestamp ? `<p class="text-xs text-base-content/60 mt-2">${new Date(md.start.timestamp).toLocaleString('de-DE')}</p>` : ''}
+              </div>
+            </div>
+          `;
+        }
+
+        // End meter reading
+        if(md.end) {
+          html += `
+            <div class="card bg-base-100 shadow-md">
+              <div class="card-body">
+                <h3 class="card-title text-sm font-semibold text-base-content/70">Zählerstand Ende</h3>
+                <p class="text-3xl font-bold text-primary">${md.end.meterReading.toFixed(3)} <span class="text-lg">${md.end.unit}</span></p>
+                ${md.end.timestamp ? `<p class="text-xs text-base-content/60 mt-2">${new Date(md.end.timestamp).toLocaleString('de-DE')}</p>` : ''}
+              </div>
+            </div>
+          `;
+        }
+
+        html += `</div>`;
+
+        // Energy delivered - highlighted
+        if(md.energyDelivered !== undefined) {
+          html += `
+            <div class="card bg-primary text-primary-content shadow-lg mb-4">
+              <div class="card-body text-center">
+                <h3 class="card-title justify-center text-lg">Abgegebene Energiemenge</h3>
+                <p class="text-5xl font-bold">${md.energyDelivered.toFixed(3)} <span class="text-2xl">${md.energyUnit}</span></p>
+              </div>
+            </div>
+          `;
+        }
+
+        // Duration
+        if(md.duration) {
+          html += `
+            <div class="card bg-base-100 shadow-md mb-4">
+              <div class="card-body">
+                <h3 class="card-title text-sm font-semibold">Ladedauer</h3>
+                <p class="text-2xl font-semibold">${md.duration}</p>
+                <p class="text-xs text-base-content/60">${md.durationSeconds} Sekunden</p>
+              </div>
+            </div>
+          `;
+        }
+
+        // Transaction ID and metadata
+        html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+        
+        if(md.transactionId) {
+          html += `
+            <div class="card bg-base-100 shadow-md">
+              <div class="card-body">
+                <h3 class="card-title text-sm font-semibold text-base-content/70">Transaction-ID</h3>
+                <p class="text-lg font-mono">${md.transactionId}</p>
+              </div>
+            </div>
+          `;
+        }
+
+        if(md.meterSerialNumber || md.meterModel) {
+          html += `
+            <div class="card bg-base-100 shadow-md">
+              <div class="card-body">
+                <h3 class="card-title text-sm font-semibold text-base-content/70">Zählermodell</h3>
+                ${md.meterModel ? `<p class="text-sm">${md.meterModel}</p>` : ''}
+                ${md.meterSerialNumber ? `<p class="text-xs text-base-content/60 mt-1">Seriennummer: ${md.meterSerialNumber}</p>` : ''}
+              </div>
+            </div>
+          `;
+        }
+
+        html += `</div>`;
+
+        resultContainer.innerHTML = html;
+      } else {
+        resultContainer.innerHTML = `
+          <div class="alert alert-warning">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Verifiziert, aber keine Messdaten verfügbar</span>
+          </div>
+        `;
+      }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      switchTab('verify');
+      fetch('/api/health')
+        .then(r => r.json())
+        .then(j => {
+          const healthEl = document.getElementById('health');
+          const status = j.status || 'n/a';
+          healthEl.textContent = status;
+          healthEl.className = status === 'ok' || status === 'healthy' 
+            ? 'badge badge-success ml-1' 
+            : 'badge badge-warning ml-1';
+        })
+        .catch(() => {
+          const healthEl = document.getElementById('health');
+          healthEl.textContent = 'offline';
+          healthEl.className = 'badge badge-error ml-1';
+        });
+    });
   </script>
-  </head>
+</head>
 <body class="bg-base-200 min-h-screen">
-  <div class="container mx-auto max-w-6xl px-4 py-8">
-    <!-- Header Section -->
-    <header class="mb-8">
-      <div class="flex items-center justify-between flex-wrap gap-4 mb-2">
-        <h1 class="text-3xl font-bold text-base-content">SAFESealing</h1>
-        <div class="badge badge-lg badge-outline">
-          <span class="font-mono text-xs">Status:</span>
-          <span id="health" class="ml-1">checking...</span>
+  <div class="flex">
+    <!-- Sidebar Navigation -->
+    <div class="w-64 min-h-screen bg-base-100 shadow-lg border-r border-base-300">
+      <div class="p-4 border-b border-base-300">
+        <h1 class="text-2xl font-bold text-base-content">Transparenzsoftware OB7</h1>
+        <p class="text-xs text-base-content/70 mt-1">Webversion</p>
+        <div class="badge badge-sm badge-outline mt-2">
+          <span class="text-xs">Status:</span>
+          <span id="health" class="ml-1 text-xs">checking...</span>
         </div>
       </div>
-      <p class="text-base-content/70 text-sm leading-relaxed max-w-2xl">
-        Secure cryptographic sealing and revealing demonstration interface. Generate RSA keys for testing or use your own key pair.
-      </p>
-    </header>
+      <ul class="menu p-4 w-full">
+        <li>
+          <a class="menu-item active" onclick="switchTab('verify'); return false;" href="#">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Verifizieren
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" onclick="switchTab('seal'); return false;" href="#">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Seal Data
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" onclick="switchTab('reveal'); return false;" href="#">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            Reveal Data
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" onclick="switchTab('settings'); return false;" href="#">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Einstellungen
+          </a>
+        </li>
+      </ul>
+    </div>
 
-    <!-- Keys Section -->
-    <section class="mb-8">
-      <div class="card bg-base-100 shadow-lg border border-base-300">
-        <div class="card-body">
-          <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
-            <div>
-              <h2 class="card-title text-xl mb-1">🔑 Cryptographic Keys</h2>
-              <p class="text-sm text-base-content/60">RSA 2048-bit key pair for sealing and revealing operations</p>
+    <!-- Main Content Area -->
+    <div class="flex-1 p-8">
+      <!-- Verify Tab -->
+      <div id="tab-verify" class="tab-content">
+        <div class="mb-6">
+          <h2 class="text-3xl font-bold text-base-content mb-2">Transparenz-XML verifizieren</h2>
+          <p class="text-base-content/70">
+            Laden Sie Ihre Transparenz-XML-Datei hoch und klicken Sie auf "Verifizieren", um Ihre Ladedaten zu überprüfen.
+            Der öffentliche Schlüssel wird automatisch aus der Datei erkannt.
+          </p>
+        </div>
+
+        <div class="card bg-base-100 shadow-lg mb-6">
+          <div class="card-body">
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text font-semibold text-lg">Transparenz-XML Datei</span>
+              </label>
+              <input id="xmlFile" type="file" accept=".xml" class="file-input file-input-bordered file-input-primary w-full file-input-lg" />
+              <label class="label">
+                <span class="label-text-alt text-base-content/50">oder XML-Text einfügen</span>
+              </label>
             </div>
-            <button class="btn btn-primary btn-lg" onclick="generateKeys()">
+
+            <div class="form-control mb-4 collapse collapse-arrow">
+              <input type="checkbox" />
+              <div class="collapse-title text-sm font-medium">
+                Erweiterte Optionen
+              </div>
+              <div class="collapse-content">
+                <div class="form-control mb-4">
+                  <label class="label">
+                    <span class="label-text font-medium text-xs">XML-Text</span>
+                  </label>
+                  <textarea 
+                    id="xmlText" 
+                    class="textarea textarea-bordered w-full min-h-32 font-mono text-sm" 
+                    placeholder="Transparenz-XML hier einfügen...">
+                  </textarea>
+                </div>
+                <div class="form-control mb-4">
+                  <label class="label">
+                    <span class="label-text font-medium text-xs">Optional: Public Key (PEM, Base64, or Hex)</span>
+                  </label>
+                  <textarea 
+                    id="verifyPublicKeyPem" 
+                    class="textarea textarea-bordered w-full min-h-28 font-mono text-xs" 
+                    placeholder="PEM: -----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\nOr Base64 or Hex format">
+                  </textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="divider my-4"></div>
+
+            <button class="btn btn-primary btn-lg btn-block" onclick="doVerify()">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              Generate Keys
+              Verifizieren
             </button>
           </div>
-          <div class="divider my-2"></div>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-semibold text-sm">Public Key (PEM, X.509)</span>
-              </label>
-              <textarea 
-                id="publicKeyPem" 
-                class="textarea textarea-bordered w-full min-h-48 font-mono text-xs leading-relaxed" 
-                placeholder="-----BEGIN PUBLIC KEY-----&#10;...&#10;-----END PUBLIC KEY-----">
-              </textarea>
-            </div>
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-semibold text-sm">Private Key (PEM, PKCS#8)</span>
-              </label>
-              <textarea 
-                id="privateKeyPem" 
-                class="textarea textarea-bordered w-full min-h-48 font-mono text-xs leading-relaxed" 
-                placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----">
-              </textarea>
-            </div>
-          </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Operations Section -->
-    <section>
-      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <!-- Seal Card -->
-        <div class="card bg-base-100 shadow-lg border border-base-300">
+        <div id="verifyResultContainer"></div>
+      </div>
+
+      <!-- Seal Data Tab -->
+      <div id="tab-seal" class="tab-content hidden">
+        <div class="mb-6">
+          <h2 class="text-3xl font-bold text-base-content mb-2">Seal Data</h2>
+          <p class="text-base-content/70">
+            Versiegeln Sie Daten mit einem privaten Schlüssel.
+          </p>
+        </div>
+
+        <div class="card bg-base-100 shadow-lg">
           <div class="card-body">
-            <h2 class="card-title text-xl mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              Seal Data
-            </h2>
-            
             <div class="form-control mb-4">
               <label class="label">
                 <span class="label-text font-medium">Payload File</span>
@@ -224,17 +479,19 @@
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Reveal Card -->
-        <div class="card bg-base-100 shadow-lg border border-base-300">
+      <!-- Reveal Data Tab -->
+      <div id="tab-reveal" class="tab-content hidden">
+        <div class="mb-6">
+          <h2 class="text-3xl font-bold text-base-content mb-2">Reveal Data</h2>
+          <p class="text-base-content/70">
+            Entsiegel Sie versiegelte Daten mit einem öffentlichen Schlüssel.
+          </p>
+        </div>
+
+        <div class="card bg-base-100 shadow-lg">
           <div class="card-body">
-            <h2 class="card-title text-xl mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              Reveal Data
-            </h2>
-
             <div class="form-control mb-4">
               <label class="label">
                 <span class="label-text font-medium">Sealed File</span>
@@ -301,108 +558,73 @@
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Verify OCMF Card -->
-        <div class="card bg-base-100 shadow-lg border border-base-300">
+      <!-- Settings Tab -->
+      <div id="tab-settings" class="tab-content hidden">
+        <div class="mb-6">
+          <h2 class="text-3xl font-bold text-base-content mb-2">Einstellungen</h2>
+          <p class="text-base-content/70">
+            Erweiterte Einstellungen für kryptographische Schlüssel.
+          </p>
+        </div>
+
+        <div class="card bg-base-100 shadow-lg">
           <div class="card-body">
-            <h2 class="card-title text-xl mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              Verify OCMF (Transparenz-XML)
-            </h2>
-
-            <div class="form-control mb-4">
-              <label class="label">
-                <span class="label-text font-medium">Transparenz-XML</span>
-              </label>
-              <input id="xmlFile" type="file" class="file-input file-input-bordered file-input-accent w-full" />
-            </div>
-
-            <div class="form-control mb-4">
-              <label class="label">
-                <span class="label-text font-medium">Or XML Text</span>
-              </label>
-              <textarea 
-                id="xmlText" 
-                class="textarea textarea-bordered w-full min-h-32 font-mono text-sm" 
-                placeholder="Paste Transparenz-XML here...">
-              </textarea>
-            </div>
-
-            <div class="form-control mb-4">
-              <label class="label">
-                <span class="label-text font-medium text-xs">Optional Public Key (PEM)</span>
-              </label>
-              <textarea 
-                id="verifyPublicKeyPem" 
-                class="textarea textarea-bordered w-full min-h-28 font-mono text-xs" 
-                placeholder="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----">
-              </textarea>
-            </div>
-
-            <div class="divider my-2"></div>
-
-            <div class="flex flex-wrap gap-3 mb-4">
-              <button class="btn btn-accent btn-block sm:btn-auto" onclick="doVerify()">
-                Verify
+            <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
+              <div>
+                <h3 class="card-title text-xl mb-1">🔑 Cryptographic Keys</h3>
+                <p class="text-sm text-base-content/60">RSA 2048-bit key pair for sealing and revealing operations</p>
+              </div>
+              <button class="btn btn-primary btn-lg" onclick="generateKeys()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Generate Keys
               </button>
             </div>
-
-            <div class="form-control mb-4">
-              <label class="label">
-                <span class="label-text font-medium text-xs">Verification Result</span>
-              </label>
-              <div class="mockup-code bg-base-200 text-xs">
-                <pre id="verifyOut" class="text-xs p-4 overflow-x-auto"></pre>
+            <div class="divider my-2"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-semibold text-sm">Public Key (PEM, X.509)</span>
+                </label>
+                <textarea 
+                  id="publicKeyPem" 
+                  class="textarea textarea-bordered w-full min-h-48 font-mono text-xs leading-relaxed" 
+                  placeholder="-----BEGIN PUBLIC KEY-----&#10;...&#10;-----END PUBLIC KEY-----">
+                </textarea>
+              </div>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-semibold text-sm">Private Key (PEM, PKCS#8)</span>
+                </label>
+                <textarea 
+                  id="privateKeyPem" 
+                  class="textarea textarea-bordered w-full min-h-48 font-mono text-xs leading-relaxed" 
+                  placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----">
+                </textarea>
               </div>
             </div>
-
           </div>
         </div>
       </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="mt-12 pt-6 border-t border-base-300">
-      <p class="text-xs text-base-content/50 text-center">
-        SAFESealing Demo Interface • Localhost Development Environment
-      </p>
-    </footer>
+    </div>
   </div>
-  <script>
-    fetch('/api/health')
-      .then(r => r.json())
-      .then(j => {
-        const healthEl = document.getElementById('health');
-        const status = j.status || 'n/a';
-        healthEl.textContent = status;
-        healthEl.className = status === 'ok' || status === 'healthy' 
-          ? 'badge badge-success ml-1' 
-          : 'badge badge-warning ml-1';
-      })
-      .catch(() => {
-        const healthEl = document.getElementById('health');
-        healthEl.textContent = 'offline';
-        healthEl.className = 'badge badge-error ml-1';
-      });
 
-    async function doVerify(){
-      const form = new FormData();
-      const xmlFile = document.getElementById('xmlFile').files[0];
-      const xmlText = document.getElementById('xmlText').value.trim();
-      const publicKeyPem = document.getElementById('verifyPublicKeyPem').value.trim();
-      if(xmlFile){ form.append('xml', xmlFile); } else if(xmlText){ form.append('xmlText', xmlText); }
-      if(publicKeyPem){ form.append('publicKeyPem', publicKeyPem); }
-      try{
-        const data = await postForm('/api/verify', form);
-        document.getElementById('verifyOut').textContent = JSON.stringify(data, null, 2);
-      }catch(e){
-        document.getElementById('verifyOut').textContent = JSON.stringify({ error: e.message }, null, 2);
-      }
+  <style>
+    .menu-item {
+      transition: all 0.2s;
+      cursor: pointer;
     }
-  </script>
+    .menu-item.active,
+    li.active .menu-item {
+      background-color: hsl(var(--p) / 0.1);
+      color: hsl(var(--p));
+    }
+    .menu-item:hover {
+      background-color: hsl(var(--b2));
+    }
+  </style>
 </body>
 </html>
-
-
